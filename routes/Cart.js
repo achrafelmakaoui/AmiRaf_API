@@ -1,4 +1,5 @@
-const Client = require("../models/Product");
+const Cart = require("../models/Cart");
+const Product = require("../models/Product");
 const {
     verifyToken,
     verifyTokenAdmin,
@@ -7,125 +8,139 @@ const {
 const router = require("express").Router();
 
 // CREATE
-router.post("/", async (req, res) => {
-  const newClient = new Client(req.body);
+router.post('/', async (req, res) => {
+  const { userId, items } = req.body;
 
   try {
-    const savedClient = await newClient.save();
-    res.status(200).json(savedClient);
-  } catch (err) {
-    res.status(500).json(err);
+    const product = await Product.findById(items[0].productId);
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Existing cart logic
+    let cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      cart = new Cart({
+        userId,
+        items: [{ productId: items[0].productId, quantity: items[0].quantity }],
+      });
+    } else {
+      const existingProduct = cart.items.find(item => item.productId.toString() === items[0].productId);
+
+      if (existingProduct) {
+        existingProduct.quantity += items[0].quantity;
+      } else {
+        cart.items.push({ productId: items[0].productId, quantity: items[0].quantity });
+      }
+    }
+
+    await cart.save();
+
+    res.status(200).json({ message: 'Product added to cart successfully', cart });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error adding to cart', error: error.message });
   }
 });
 
 //UPDATE
-router.put("/:id", async (req, res) => {
-  try {
-    const updatedClient = await Client.findByIdAndUpdate(
-      req.params.id,
-      {
-        $set: req.body,
-      },
-      { new: true }
-    );
-    res.status(200).json(updatedClient);
-  } catch (err) {
-    res.status(500).json(err);
+router.put('/:userId/:productId', async (req, res) => {
+  const { userId, productId } = req.params;
+  const { quantity } = req.body; // New quantity passed in the request body
+
+  if (quantity <= 0) {
+    return res.status(400).json({ message: 'Quantity must be greater than 0' });
   }
-});
-
-//DELETE
-router.delete("/:id", async (req, res) => {
-  try {
-    await Client.findByIdAndDelete(req.params.id);
-    res.status(200).json("Client has been deleted...");
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-//GET Client
-router.get("/find/:id", async (req, res) => {
-  try {
-    const client = await Client.findById(req.params.id);
-    res.status(200).json(client);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-//GET ALL Client
-router.get("/", async (req, res) => {
-  const query = req.query.new;
-  try {
-    const clients = query
-      ? await Client.find().sort({ _id: -1 })
-      : await Client.find();
-    res.status(200).json(clients);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-router.get("/search/", async (req, res) => {
-  const sname = req.query.name;
-  const stationInscription = req.query.stationInscription; 
 
   try {
-    let Clients;
-    if (sname && stationInscription) {
-      const regex = new RegExp(sname, "i");
-      Clients = await Client.find({nomComplet: regex, stationInscription: stationInscription});
-    } else if (sname) {
-      const regex = new RegExp(sname, "i");
-      Clients = await Client.find({nomComplet: regex});
-    }
-    else {
-      Clients = await Client.find();
-    }
-    res.status(200).json(Clients);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
+    // Find the cart for the user
+    const cart = await Cart.findOne({ userId });
 
-
-router.get('/multiFilter', async (req, res) => {
-  const proprietaire = req.query.proprietaire; // 'oui' or 'non'
-  const stationInscription = req.query.stationInscription; 
-  const totalPoints = parseInt(req.query.totalPoints);
-  const totalVisits = parseInt(req.query.freqVisiteParMois);
-
-  try {
-    let query = {}; // Empty query object to start with
-    
-    // Add proprietaire filter to the query if provided
-    if (proprietaire !== undefined) {
-      query.proprietaire = (proprietaire === 'oui'); // Convert 'oui' to true, 'non' to false
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
     }
 
-    // Add stationInscription filter to the query if provided
-    if (stationInscription) {
-      query.stationInscription = stationInscription;
+    // Find the product in the cart
+    const product = cart.items.find(item => item.productId.toString() === productId);
+
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found in cart' });
     }
 
-    // Add totalPoints filter to the query if provided
-    if (!isNaN(totalPoints)) {
-      query.totalPoints = { $gte: totalPoints };
-    }
+    // Update the quantity of the product
+    product.quantity = quantity;
 
-    // Add totalVisits filter to the query if provided
-    if (!isNaN(totalVisits)) {
-      query.freqVisiteParMois = { $gte: totalVisits };
-    }
+    // Save the updated cart
+    await cart.save();
 
-    // Find clients based on the constructed query
-    const filteredClients = await Client.find(query);
-
-    res.json(filteredClients);
+    res.status(200).json({ message: 'Quantity updated successfully', cart });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Internal server error.' });
+    res.status(500).json({ message: 'Error updating quantity', error: err.message });
+  }
+});
+
+
+//DELETE
+router.delete('/:userId/:productId', async (req, res) => {
+  const { userId, productId } = req.params;
+
+  try {
+    // Find the cart by userId
+    const cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
+    }
+
+    // Find the index of the product to remove
+    const productIndex = cart.items.findIndex(item => item.productId.toString() === productId);
+
+    if (productIndex === -1) {
+      return res.status(404).json({ message: 'Product not found in cart' });
+    }
+
+    // Remove the product from the cart
+    cart.items.splice(productIndex, 1);
+
+    // If the cart is empty, delete the cart
+    if (cart.items.length === 0) {
+      await cart.delete();
+      return res.status(200).json({ message: 'Cart is now empty and has been deleted' });
+    }
+
+    // Otherwise, save the updated cart
+    await cart.save();
+    
+    res.status(200).json({ message: 'Product removed from cart', cart });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error deleting product from cart', error: error.message });
+  }
+});
+
+//GET Cart
+router.get("/find/:userId", async (req, res) => {
+  try {
+    const Cart = await Cart.findById(req.params.userId);
+    res.status(200).json(Cart);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+//GET ALL Cart
+router.get("/", verifyTokenAdmin, async (req, res) => {
+  const query = req.query.new;
+  try {
+    const Carts = query
+      ? await Cart.find().sort({ _id: -1 })
+      : await Cart.find();
+    res.status(200).json(Carts);
+  } catch (err) {
+    res.status(500).json(err);
   }
 });
 

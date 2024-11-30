@@ -1,5 +1,6 @@
 const User = require("../models/User");
-const CryptoJS = require("crypto-js");
+const bcrypt = require("bcryptjs");
+
 const {
     verifyToken,
     verifyTokenAdmin,
@@ -7,13 +8,15 @@ const {
 
 const router = require("express").Router();
 
-//UPDATE
-router.put("/:id", verifyTokenAdmin,  async (req, res) => {
+
+router.put("/:id", verifyTokenAdmin, async (req, res) => {
   if (req.body.password) {
-    req.body.password = CryptoJS.AES.encrypt(
-      req.body.password,
-      process.env.PASS_SEC
-    ).toString();
+    try {
+      const salt = await bcrypt.genSalt(10); // Generate a salt
+      req.body.password = await bcrypt.hash(req.body.password, salt); // Hash the password
+    } catch (err) {
+      return res.status(500).json({ message: "Error hashing password" });
+    }
   }
 
   try {
