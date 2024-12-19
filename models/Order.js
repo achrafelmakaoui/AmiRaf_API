@@ -21,16 +21,16 @@ const OrderSchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
+        status: {
+          type: String,
+          enum: ['ATT', 'CNF','NTW', 'REF', 'RTR', 'LVR'],
+          default: 'ATT',
+        },
       },
     ],
     totalPrice: {
       type: Number,
       required: true,
-    },
-    status: {
-      type: String,
-      enum: ['Attente', 'Confirmé', 'Refusé', 'Retour', 'Livré'],
-      default: 'Attente',
     },
     clientName: {
       type: String,

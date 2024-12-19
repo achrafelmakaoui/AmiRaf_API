@@ -9,7 +9,7 @@ const {
 const router = require("express").Router();
 
 
-router.put("/:id", verifyTokenAdmin, async (req, res) => {
+router.put("/:id", async (req, res) => {
   if (req.body.password) {
     try {
       const salt = await bcrypt.genSalt(10); // Generate a salt
@@ -34,7 +34,7 @@ router.put("/:id", verifyTokenAdmin, async (req, res) => {
 });
 
 //DELETE
-router.delete("/:id" , verifyTokenAdmin, async (req, res) => {
+router.delete("/:id" , async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.status(200).json("User has been deleted...");
@@ -43,13 +43,24 @@ router.delete("/:id" , verifyTokenAdmin, async (req, res) => {
   }
 });
 
+// GET USERS
+router.get("/find/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    const { password, ...others } = user._doc;
+    res.status(200).json(others);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
 //GET ALL USER
-router.get("/", verifyTokenAdmin, async (req, res) => {
+router.get("/", async (req, res) => {
   const query = req.query.new;
   try {
     const users = query
-      ? await User.find().sort({ _id: -1 })
-      : await User.find();
+      ? await User.find().sort({ createdAt: -1 })
+      : await User.find().sort({ createdAt: -1 });
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json(err);

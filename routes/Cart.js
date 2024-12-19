@@ -83,7 +83,8 @@ router.put('/:userId/:productId', async (req, res) => {
 });
 
 
-//DELETE
+// DELETE
+// DELETE
 router.delete('/:userId/:productId', async (req, res) => {
   const { userId, productId } = req.params;
 
@@ -92,14 +93,14 @@ router.delete('/:userId/:productId', async (req, res) => {
     const cart = await Cart.findOne({ userId });
 
     if (!cart) {
-      return res.status(404).json({ message: 'Cart not found' });
+      return res.status(404).json({ message: 'Cart not found', items: [] }); // Return empty items array
     }
 
     // Find the index of the product to remove
     const productIndex = cart.items.findIndex(item => item.productId.toString() === productId);
 
     if (productIndex === -1) {
-      return res.status(404).json({ message: 'Product not found in cart' });
+      return res.status(404).json({ message: 'Product not found in cart', items: cart.items });
     }
 
     // Remove the product from the cart
@@ -107,19 +108,20 @@ router.delete('/:userId/:productId', async (req, res) => {
 
     // If the cart is empty, delete the cart
     if (cart.items.length === 0) {
-      await cart.delete();
-      return res.status(200).json({ message: 'Cart is now empty and has been deleted' });
+      await Cart.deleteOne({ _id: cart._id }); // Delete the entire cart
+      return res.status(200).json({ message: 'Cart is now empty and has been deleted', items: [] }); // Send empty items
     }
 
     // Otherwise, save the updated cart
     await cart.save();
-    
-    res.status(200).json({ message: 'Product removed from cart', cart });
+
+    res.status(200).json({ message: 'Product removed from cart', items: cart.items });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error deleting product from cart', error: error.message });
   }
 });
+
 
 //GET Cart
 router.get("/find/:userId", async (req, res) => {
@@ -132,15 +134,34 @@ router.get("/find/:userId", async (req, res) => {
 });
 
 //GET ALL Cart
-router.get("/", verifyTokenAdmin, async (req, res) => {
-  const query = req.query.new;
+router.get('/:userId', async (req, res) => {
   try {
-    const Carts = query
-      ? await Cart.find().sort({ _id: -1 })
-      : await Cart.find();
-    res.status(200).json(Carts);
-  } catch (err) {
-    res.status(500).json(err);
+    const cart = await Cart.findOne({ userId: req.params.userId })
+      .populate({
+        path: 'items.productId',
+        select: 'new_price image1 title old_price quantity isInStock',
+      });
+
+    if (!cart) {
+      // Return an empty cart structure if not found
+      return res.status(200).json({
+        items: [],
+        totalPrice: 0,
+      });
+    }
+
+    // Calculate total price
+    cart.totalPrice = cart.items.reduce((total, item) => {
+      const product = item.productId;
+      return total + product.new_price * item.quantity;
+    }, 0);
+
+    await cart.save();
+
+    res.status(200).json(cart);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
