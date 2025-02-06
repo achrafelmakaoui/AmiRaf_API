@@ -229,7 +229,6 @@ router.delete("/:id", async (req, res) => {
     if (!deletedOrder) {
       return res.status(404).json({ message: "Order not found" });
     }
-
     res.status(200).json({ message: "Order deleted successfully", order: deletedOrder });
   } catch (err) {
     res.status(500).json({ message: "Error deleting order", error: err.message });
@@ -240,25 +239,37 @@ router.delete("/orders/:orderId/:itemId", async (req, res) => {
   try {
     const { orderId, itemId } = req.params;
 
+    // Step 1: Validate ObjectIds
     if (!mongoose.Types.ObjectId.isValid(orderId) || !mongoose.Types.ObjectId.isValid(itemId)) {
       return res.status(400).json({ message: "Invalid orderId or itemId" });
     }
+
+    // Step 2: Remove the specified item from the 'items' array
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
-      { $pull: { items: { _id: itemId } } },
-      { new: true }
+      { $pull: { items: { _id: itemId } } }, // Remove the specific item
+      { new: true } // Return the updated document
     ).populate("items.productId", "title new_price image1");
 
+    // Step 3: Check if the order exists
     if (!updatedOrder) {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    // Step 4: Check if 'items' array is empty after the update
+    if (updatedOrder.items.length === 0) {
+      // If items array is empty, delete the entire order document
+      await Order.findByIdAndDelete(orderId);
+      return res.status(200).json({ message: "Order deleted because it has no more items" });
+    }
+
+    // Step 5: Return the updated order if items remain
     return res.status(200).json({
       message: "Item deleted successfully",
       order: updatedOrder,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error deleting item:", error);
     return res.status(500).json({ message: "Error deleting item", error: error.message });
   }
 });
