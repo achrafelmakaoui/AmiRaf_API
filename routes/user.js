@@ -9,7 +9,7 @@ const {
 const router = require("express").Router();
 
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyTokenAdmin, async (req, res) => {
   if (req.body.password) {
     try {
       const salt = await bcrypt.genSalt(10); // Generate a salt
@@ -34,7 +34,7 @@ router.put("/:id", async (req, res) => {
 });
 
 //DELETE
-router.delete("/:id" , async (req, res) => {
+router.delete("/:id" , verifyTokenAdmin, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.status(200).json("User has been deleted...");
@@ -44,7 +44,7 @@ router.delete("/:id" , async (req, res) => {
 });
 
 // GET USERS
-router.get("/find/:id", async (req, res) => {
+router.get("/find/:id", verifyTokenAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     const { password, ...others } = user._doc;
@@ -55,7 +55,7 @@ router.get("/find/:id", async (req, res) => {
 });
 
 //GET ALL USER
-router.get("/", async (req, res) => {
+router.get("/", verifyTokenAdmin, async (req, res) => {
   const query = req.query.new;
   try {
     const users = query
