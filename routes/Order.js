@@ -123,7 +123,7 @@ router.post("/", async (req, res) => {
 
 
 //UPDATE
-router.patch("/:id/status", async (req, res) => {
+router.patch("/:id/status", verifyTokenAdmin, async (req, res) => {
   const { status } = req.body;
 
   try {
@@ -143,7 +143,7 @@ router.patch("/:id/status", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyTokenAdmin, async (req, res) => {
   try {
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
@@ -161,7 +161,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.put("/orders/:orderId/:itemId", async (req, res) => {
+router.put("/orders/:orderId/:itemId", verifyTokenAdmin, async (req, res) => {
   const { orderId, itemId } = req.params;
   const {
     quantity,
@@ -223,7 +223,7 @@ router.put("/orders/:orderId/:itemId", async (req, res) => {
 });
 
 //DELETE
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyTokenAdmin, async (req, res) => {
   try {
     const deletedOrder = await Order.findByIdAndDelete(req.params.id);
     if (!deletedOrder) {
@@ -235,7 +235,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.delete("/orders/:orderId/:itemId", async (req, res) => {
+router.delete("/orders/:orderId/:itemId", verifyTokenAdmin, async (req, res) => {
   try {
     const { orderId, itemId } = req.params;
 
@@ -274,7 +274,7 @@ router.delete("/orders/:orderId/:itemId", async (req, res) => {
   }
 });
 
-router.get("/top-selling-products", async (req, res) => {
+router.get("/top-selling-products", verifyTokenAdmin, async (req, res) => {
   try {
     const topProducts = await Order.aggregate([
       { $unwind: "$items" }, // Flatten the items array
@@ -308,7 +308,7 @@ router.get("/top-selling-products", async (req, res) => {
     res.status(500).json({ message: "Error fetching top products", error });
   }
 });
-router.get("/sales-over-time", async (req, res) => {
+router.get("/sales-over-time", verifyTokenAdmin, async (req, res) => {
   try {
     const salesData = await Order.aggregate([
       { $unwind: "$items" }, // Flatten the items array
@@ -337,7 +337,7 @@ router.get("/sales-over-time", async (req, res) => {
   }
 });
 
-router.get("/status-distribution", async (req, res) => {
+router.get("/status-distribution", verifyTokenAdmin, async (req, res) => {
   try {
     const statusDistribution = await Order.aggregate([
       { $unwind: "$items" }, // Flatten the items array
@@ -362,7 +362,7 @@ router.get("/status-distribution", async (req, res) => {
   }
 });
 
-router.get('/total-sales-revenue', async (req, res) => {
+router.get('/total-sales-revenue', verifyTokenAdmin, async (req, res) => {
   try {
     const totalRevenue = await Order.aggregate([
       {
@@ -389,7 +389,7 @@ router.get('/total-sales-revenue', async (req, res) => {
 });
 
 //GET Order by id
-router.get("/:id", async (req, res) => {
+router.get("/:id", verifyTokenAdmin, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate("items.productId", "title new_price images");
     if (!order) {
@@ -402,7 +402,7 @@ router.get("/:id", async (req, res) => {
 });
 
 //GET USER OrderS
-router.get("/user/:userId", async (req, res) => {
+router.get("/user/:userId", verifyTokenAdmin, async (req, res) => {
   try {
     const orders = await Order.find({ userId: req.params.userId }).populate("items.productId", "title new_price images");
     res.status(200).json(orders);
@@ -413,7 +413,7 @@ router.get("/user/:userId", async (req, res) => {
 
 
 // //GET ALL
-router.get("/", async (req, res) => {
+router.get("/", verifyTokenAdmin, async (req, res) => {
   try {
     const orders = await Order.find().populate("items.productId", "title new_price image1");
     res.status(200).json(orders);
@@ -422,7 +422,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/orders/filter", async (req, res) => {
+router.get("/orders/filter", verifyTokenAdmin, async (req, res) => {
   try {
     const { mois, jour, clientPhoneNumber, status, productId } = req.query;
 
@@ -512,7 +512,7 @@ router.get("/orders/filter", async (req, res) => {
   }
 });
 
-router.get("/orders/:orderId/:itemId", async (req, res) => {
+router.get("/orders/:orderId/:itemId", verifyTokenAdmin, async (req, res) => {
   try {
     const { orderId, itemId } = req.params;
 
@@ -554,9 +554,5 @@ router.get("/orders/:orderId/:itemId", async (req, res) => {
       .json({ message: "Error fetching order", error: error.message });
   }
 });
-
-
-
-
 
 module.exports = router;
